@@ -3,34 +3,56 @@ const express = require('express');
 const bodyParser = require('body-parser');
 
 const app = express();
-let list_item = [];
+const date = require(__dirname + '/date.js');
+
+const listItems = [];
+const workItems = [];
 app.set('view engine', 'ejs');
 app.use(bodyParser.urlencoded({extended : true}));
 app.use(express.static('public'));
 
 app.get("/", function(req, res){
-  let options = {
-    weekday : 'long',
-    year : 'numeric',
-    month : 'long',
-    day : 'numeric'
-  };
-
-  //var DayList = ['Sunday', 'Monday' , 'Tuesday', 'Wedensday', 'Thursday', 'Friday', 'Satureday'];
-  let today = new Date();
-  let day = today.toLocaleDateString("en-US", options);
-  let currentDay = today.getDay();
-    res.render('list',{weekDay : day, newListItems: list_item});
+  let day = date.getDate();
+    res.render('list',{title : day, newListItems: listItems});
 
 
 });
 
+
+
 app.post("/", function(req, res){
   let item = req.body.list_item;
   console.log(item);
-  list_item.push(item);
-  console.log(list_item);
-    res.redirect("/");
+  if(req.body.list == "Work"){
+    workItems.push(item);
+    res.redirect("/work");
+  }
+  else {
+    listItems.push(item);
+    console.log(req.body);
+      res.redirect("/");
+  }
+});
+
+// work page liste
+app.get("/work", function(req, res){
+  let title = "Work List";
+  res.render('list', {title : title, newListItems: workItems});
+
+});
+
+app.post("/work", function(req, res){
+  let item = req.body.list_item;
+  console.log(item);
+  workItems.push(item);
+  console.log(workItems);
+    res.redirect("/work");
+});
+
+//about page list
+
+app.get("/about", function(req, res){
+  res.render('about', {pageTitle: 'About Us'});
 });
 
 
