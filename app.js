@@ -2,6 +2,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
+const _ = require('lodash');
 
 const app = express();
 //added new modules by using require method
@@ -29,19 +30,27 @@ const itemSchema = {
   item: String
 };
 
+const listSchema = {
+  name : String,
+  items : [itemSchema]
+};
+
+const List = mongoose.model("List", listSchema);
+
+
 const Item = mongoose.model("Item", itemSchema);
-const Work = mongoose.model("Work", itemSchema);
+
 
 const item1 = new Item({
-  item: "Something to do"
+  item: "Welcome to your todo List"
 });
 
 const item2 = new Item({
-  item: "This is the item 2"
+  item: "Hit + button to add new item"
 });
 
 const item3 = new Item({
-  item: "This is the item 3"
+  item: "<-- Hit this to delete the item"
 });
 
 const defaultItems = [item1, item2, item3];
@@ -92,35 +101,25 @@ app.get("/", function(req, res) {
 
 // post route to get the values of the list items and save them
 app.post("/", function(req, res) {
-  let list_item = req.body.list_item;
-  console.log(list_item);
+  let listItem = req.body.list_item;
+  let listName = req.body.list;
 
+  const newItem = new Item (
+    {
+      item : listItem
+    }
+  );
 
-  //when u console req.body then you 'll get two valuse, one is text input and other is button, so we have set the
-  //value of button as ejs title, and by using if condition we can append the data to specific list, main list or work list
-  if (req.body.list == "Work") {
-    workItems.push(list_item);
-    const newWork = new Work (
-      {
-        item : list_item
-      }
-    );
-
-    newWork.save();
-    res.redirect("/work");
-  } else {
-
-    const newItem = new Item (
-      {
-        item : list_item
-      }
-    );
-
+  if(listName == "Today") {
     newItem.save();
-
-    listItems.push(list_item);
-    console.log(req.body);
     res.redirect("/");
+  } else {
+    List.findOne({name : listName}, function(err, foundList){
+      foundList.items.push(newItem);
+      foundList.save();
+
+      res.redirect("/" + listName);
+    });
   }
 });
 
@@ -128,9 +127,12 @@ app.post("/", function(req, res) {
 app.post("/delete", function(req, res){
   console.log(req.body.checkbox);
   console.log(req.body.list);
-  if(req.body.list == 'Today'){
+  const checkedItem = req.body.checkbox;
+  const listName = req.body.list;
 
-    Item.deleteOne({_id : req.body.checkbox}, function(err){
+  if(listName == 'Today'){
+
+    Item.deleteOne({_id : checkedItem}, function(err){
       if(err){
         console.log(err);
       } else {
@@ -139,46 +141,37 @@ app.post("/delete", function(req, res){
     });
     res.redirect("/");
   } else {
-    Work.deleteOne({_id : req.body.checkbox}, function(err){
-      if(err){
-        console.log(err);
-      } else {
-        console.log("Sucessfully Deleted");
+    List.findOneAndUpdate({name: listName}, {$pull: {items : {_id : checkedItem}}}, function(err, foundList){
+      if(!err){
+        res.redirect("/" + listName);
       }
     });
-    res.redirect("/work");
   }
 
 });
 
-// work page list route
-app.get("/work", function(req, res) {
-let title = "Work";
-  Work.find({},function(err, result){
-    res.render('list', {
-      title: title,
-      newListItems: result
-    });
+
+app.get("/:customListName", function(req, res){
+  const customListName = _.capitalize(req.params.customListName);
+  console.log(customListName);
+  List.findOne({name : customListName}, function(err, foundList){
+    if(foundList) {
+    res.render("list", {title: foundList.name , newListItems: foundList.items});
+    } else {
+      const newList = new List ({
+          name : customListName,
+          items : defaultItems
+        });
+
+      newList.save();
+      res.redirect("/" + customListName);
+    }
   });
 
+
+
 });
 
-//work list page post
-app.post("/work", function(req, res) {
-  let list_item = req.body.list_item;
-  const newWork = new Work (
-    {
-      item : list_item
-    }
-  );
-
-  newWork.save();
-
-  //console.log(item);
-  //workItems.push(item);
-  //console.log(workItems);
-  res.redirect("/work");
-});
 
 //about page ejs
 
